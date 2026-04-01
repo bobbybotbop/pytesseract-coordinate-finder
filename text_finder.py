@@ -2,6 +2,8 @@ import pyautogui
 import os
 import sys
 import pytesseract
+import argparse
+import time
 
 
 def resource_path(relative_path):
@@ -20,7 +22,7 @@ pytesseract.pytesseract.tesseract_cmd = resource_path(r"Tesseract-OCR/tesseract.
 os.environ['TESSDATA_PREFIX'] = resource_path(r"Tesseract-OCR/tessdata")
 
 # Function to locate and click on the "Multiplayer" button
-def locate_text(word, letter=None):
+def locate_text(word, letter=None, debug=False):
     width = pyautogui.size()[0]
     height = pyautogui.size()[1]
     # Take a screenshot of the Minecraft window
@@ -31,12 +33,14 @@ def locate_text(word, letter=None):
 
     # Check if the text "Multiplayer" is present in the extracted text
     if word in text:
-        print("Word located")
+        if debug:
+            print("Word located")
         # If the text is found, get the bounding box of the text        print("
               
         location = text.find(word)
         box = pytesseract.image_to_boxes(screenshot)
-        print(box)
+        if debug:
+            print(box)
         # Split the string into lines
         lines = box.strip().split('\n')
 
@@ -51,15 +55,19 @@ def locate_text(word, letter=None):
             first_part = parts[0]
             # Append the character to the word
             string += first_part
-        print(string)
+        if debug:
+            print(string)
 
         # Check if the word 'Multiplayer' is in the formed word
         if word in string:
-            print("Word found.")
+            if debug:
+                print("Word found.")
             start_index = string.find(word)
-            print(start_index)
+            if debug:
+                print(start_index)
             end_index = start_index + len(word) - 1
-            print(end_index)
+            if debug:
+                print(end_index)
             word_index = list(range(start_index, end_index + 1))
             #print(f"Indices of 'Multiplayer': {word_index}")
             # Iterate through each line
@@ -68,17 +76,22 @@ def locate_text(word, letter=None):
                 # Split the line by spaces
                 parts = line.split()
                 better_list.append(parts)
-            print(better_list)
-            print("Done")
+            if debug:
+                print(better_list)
+                print("Done")
             my_dict = {}
-            print(word_index)
+            if debug:
+                print(word_index)
             for i in range(len(word_index)):
-                print(i)
+                if debug:
+                    print(i)
                 my_list = better_list[word_index[0]+i]
-                print(my_list)
+                if debug:
+                    print(my_list)
                 # Convert numerical strings to integers
                 values = [int(item) for item in my_list[1:]]
-                print(values)
+                if debug:
+                    print(values)
                 # Create the dictionary
                 key = my_list[0]
                 count = 2
@@ -89,10 +102,12 @@ def locate_text(word, letter=None):
             multiplayer_dict = my_dict
             
             even = False
-            print(multiplayer_dict)
-            print("printed")
+            if debug:
+                print(multiplayer_dict)
+                print("printed")
             if not letter:
-                print("No letter given")
+                if debug:
+                    print("No letter given")
                 length = len(word)
                 middle_index = length // 2
                 if length % 2 == 0:
@@ -108,13 +123,15 @@ def locate_text(word, letter=None):
                 bottom = multiplayer_dict[letter][1]
                 right = multiplayer_dict[letter][2]
                 top = multiplayer_dict[letter][3]
-                print(left, bottom, right, top)
+                if debug:
+                    print(left, bottom, right, top)
                 width_diff = abs(left-right)
                 width = left+width_diff/2
                 tall_diff = abs(bottom-top)
                 tall = bottom+tall_diff/2
                 coords = (width, height-tall)
-                print(coords)
+                if debug:
+                    print(coords)
                 return coords
             if not even:
                 coords = move(letter, height)
@@ -124,11 +141,14 @@ def locate_text(word, letter=None):
                 width1 = coords1[0]
                 width2 = coords2[0]
                 width_diff = abs(width1-width2)
-                print(width_diff)
+                if debug:
+                    print(width_diff)
                 width = width1+width_diff/2
-                print(width)
+                if debug:
+                    print(width)
                 coords = (width, coords1[1])
-                print(coords)
+                if debug:
+                    print(coords)
             return coords
         
         else:
@@ -136,4 +156,63 @@ def locate_text(word, letter=None):
     else:
         print("Word not located.")
 
-pyautogui.click(locate_text("Single"))
+def _parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description="Find a word on the screen via OCR and return/move to its coordinates."
+    )
+    parser.add_argument("word", nargs="?", help="Word to search for (single word, not a sentence).")
+    parser.add_argument(
+        "--letter",
+        default=None,
+        help="Optional: specific letter within the word to target.",
+    )
+    parser.add_argument(
+        "--move",
+        action="store_true",
+        help="Move the mouse to the detected coordinates (safer than clicking).",
+    )
+    parser.add_argument(
+        "--click",
+        action="store_true",
+        help="Click the detected coordinates.",
+    )
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=0.5,
+        help="Mouse move duration in seconds (default: 0.5).",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        help="Optional delay before moving/clicking (seconds).",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print verbose OCR/box debugging output.",
+    )
+    return parser.parse_args(argv)
+
+
+if __name__ == "__main__":
+    args = _parse_args(sys.argv[1:])
+
+    # Backwards-compatible default behavior
+    word = args.word or "Single"
+    coords = locate_text(word, args.letter, debug=args.debug)
+
+    if coords is None:
+        sys.exit(1)
+
+    print(f"coords: {coords}")
+
+    if args.delay > 0:
+        time.sleep(args.delay)
+
+    if args.move or args.click:
+        pyautogui.moveTo(coords[0], coords[1], duration=args.duration)
+
+    if args.click:
+        pyautogui.click()
