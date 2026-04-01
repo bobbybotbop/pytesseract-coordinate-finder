@@ -30,24 +30,86 @@ py -m pip install pygetwindow
 PyTesseract requires both the python module, and the OCR folder, so you must have the [Tesseract-OCR](<https://github.com/DiamondYTR/pytesseract-coordinate-finder/tree/main/Tesseract-OCR>) folder in the same folder as the python script.
 
 ## Usage
-The function "locate_text", takes two arguments, "word", and "letter".
+### UI Tester (recommended)
 
-(**word**) is the word that you want to scan for, you cannot scan for sentences.
-
-(**letter**) *is optional*, it will scan for the specific letter within the word's coordinates.
-
-The function returns the coordinates of whatever data you specify.
+Run the interactive tester:
 
 ```
-Ex) locate_text("Multiplayer")
+py ui_tester.py
 ```
-This will return the coordinates of the middle of the word, in this case, that would be the coordinates of the center of the letter "p" (found automatically)
+
+To find coordinates using a **single input word**:
+
+- Put your target text into the **Word** field (example: `Multiplayer` or `my.name`)
+- Leave everything else blank
+- Click **Run OCR**
+- Read the result in the Output box:
+  - `coords: (x, y)` is the screen coordinate of the match
+
+Defaults used by the UI when you don’t change anything:
+
+- **Case-sensitive** matching
+- **Min confidence**: `60`
+- **Match strategy**: `best`
+
+### Library
+
+The function `locate_text(word, letter=None, ...)` returns **screen coordinates** `(x, y)` for the center of the detected word (or for a specific letter).\n
+\n
+For more control, use `locate_text_match(...)`, which returns an `OcrMatch` containing `coords`, `bbox`, `confidence`, `matched_text`, and `source_region`.
+
+#### Basic examples
+
+- **Word center**:
 
 ```
-Ex) locate_text("Multiplayer", "r")
+locate_text("Multiplayer")
 ```
-This will return the coordinates of the center of the letter "r", as opposed to the full word.
-This is because you specified you want the coordinates of that specific letter.
+
+- **Specific letter** (first occurrence):
+
+```
+locate_text("Multiplayer", "r")
+```
+
+#### Faster + more reliable capture
+
+By default it captures the full screen. For major performance wins, restrict OCR:\n
+\n
+- **Window capture** (requires `pygetwindow`):
+
+```
+locate_text_match("Multiplayer", window_title="Minecraft")
+```
+
+- **Region capture**:
+
+```
+locate_text_match("Multiplayer", region=(0, 0, 800, 600))
+```
+
+#### Matching and reliability knobs
+
+- **Confidence threshold**: `min_conf` (default `60.0`)\n
+- **Multiple matches**: use `match_strategy` (`best`/`first`) plus `match_index` (0-based)\n
+- **Case-insensitive matching**: `case_sensitive=False`\n
+- **Substring matching** (less reliable): `allow_contains=True`\n
+- **Letter disambiguation**: `letter_index` (0-based occurrence within the word)\n
+- **More accurate letter boxing**: `precise_letter=True` (slower; only runs per-letter boxing inside the matched word box)\n
+\n
+### CLI
+
+`text_finder.py` can also be run directly. It prints `coords: (x, y)` and can optionally move/click.\n
+\n
+Examples:\n
+\n
+```
+py text_finder.py Multiplayer --window-title Minecraft --move
+```
+\n
+```
+py text_finder.py Multiplayer --region 0,0,800,600 --min-conf 70 --match-strategy best --match-index 0
+```
 
 ## Notes
 This program was made in help by ChatGPT, which is why you may see occasional comments throughout the script, though in some areas I heavily modified the original content, so the comments may not always be accurate.
